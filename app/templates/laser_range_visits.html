@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Laser Training Sessions</h2>
+
+<div class="row animate__animated animate__fadeInLeft">
+    {% for s in sessions %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <strong>Date:</strong> {{ s.date }}
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>Gun:</strong> {{ get_gun_name(s.gun_id) }}<br/>
+                    <strong>Shots / Round:</strong> {{ s.shots_per_round }}
+                </p>
+                <div class="d-flex justify-content-between">
+                    <a
+                        href="{{ url_for('bp_laser.view_visit', session_id=s.id) }}"
+                        class="btn btn-custom"
+                    >
+                        Details
+                    </a>
+                    <form
+                        method="POST"
+                        action="{{ url_for('bp_laser.delete_visit', session_id=s.id) }}"
+                        onsubmit="return confirm('Really delete this laser session?')"
+                    >
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

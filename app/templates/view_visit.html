@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Details of Visit #{{ visit.id }}</h2>
+
+<div class="card animate__animated animate__fadeInLeft">
+    <div class="card-header">
+        <strong>Date:</strong> {{ visit.date }}
+    </div>
+    <div class="card-body">
+        <p><strong>Range:</strong> {{ get_range_name(visit.range_id) }}</p>
+        <p><strong>Ammo Used:</strong> {{ visit.ammo_used }}</p>
+    </div>
+</div>
+
+<h4 class="mt-4">Rounds:</h4>
+{% for r in visit_rounds %}
+<div class="card mb-3 animate__animated animate__fadeInUp">
+    <div class="card-body">
+        <p>
+            <strong>Gun:</strong> {{ get_gun_name(r.gun_id) }}<br/>
+            <strong>Target:</strong> {{ get_target_name(r.target_type_id) }}<br/>
+            <strong>Distance:</strong> {{ r.distance }}m<br/>
+            <strong>Score:</strong> {{ r.score }}
+        </p>
+        {% if r.photo %}
+        <div>
+            <a 
+                href="{{ url_for('static', filename='uploads/' ~ r.photo) }}" 
+                target="_blank"
+            >
+                <img 
+                    src="{{ url_for('static', filename='uploads/' ~ r.photo) }}" 
+                    alt="Photo of target" 
+                    style="max-width: 200px;"
+                />
+            </a>
+        </div>
+        {% endif %}
+        <a 
+            href="{{ url_for('bp_main.interactive_target', round_id=r.id) }}" 
+            class="btn btn-warning mt-2"
+        >
+            Interactive Target
+        </a>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

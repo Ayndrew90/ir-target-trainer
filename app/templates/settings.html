@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Settings</h2>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInLeft">
+            <div class="card-header">
+                <h5 class="mb-0">New Shooting Range</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="form_type" value="range"/>
+                    <div class="mb-3">
+                        <label for="range_name" class="form-label">Range Name</label>
+                        <input type="text" class="form-control" name="range_name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="range_photo" class="form-label">Photo (optional)</label>
+                        <input type="file" class="form-control" name="range_photo" accept="image/*"/>
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInUp">
+            <div class="card-header">
+                <h5 class="mb-0">New Gun</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="form_type" value="gun"/>
+                    <div class="mb-3">
+                        <label for="gun_name" class="form-label">Gun Name</label>
+                        <input type="text" class="form-control" name="gun_name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="gun_photo" class="form-label">Photo (optional)</label>
+                        <input type="file" class="form-control" name="gun_photo" accept="image/*"/>
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInRight">
+            <div class="card-header">
+                <h5 class="mb-0">New Target</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="form_type" value="target"/>
+                    <div class="mb-3">
+                        <label for="target_name" class="form-label">Target Name</label>
+                        <input type="text" class="form-control" name="target_name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="target_photo" class="form-label">Photo (optional)</label>
+                        <input type="file" class="form-control" name="target_photo" accept="image/*"/>
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Overview: existing ranges, guns, and targets -->
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInLeft">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Ranges</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for r in all_ranges %}
+                    <p>{{ r.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInUp">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Guns</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for g in all_guns %}
+                    <p>{{ g.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInRight">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Targets</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for t in all_targets %}
+                    <p>{{ t.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

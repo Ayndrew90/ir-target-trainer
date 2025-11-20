@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Range Log</title>
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"
+    />
+    <script
+        src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"
+    ></script>
+    <style>
+        body {
+            background: #121212;
+            color: #ffffff;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        nav {
+            background-color: #222;
+        }
+        nav a.navbar-brand {
+            color: #f0f0f0;
+        }
+        nav a.nav-link {
+            color: #f0f0f0;
+        }
+        nav a.nav-link:hover {
+            color: #ffffff;
+        }
+        .navbar-toggler {
+            background-color: #333;
+            border: none;
+        }
+        .navbar-toggler-icon {
+            filter: brightness(200%);
+        }
+        .nav-link.active {
+            font-weight: bold;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            color: #ffffff;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+        .card-header {
+            background-color: #333;
+            color: #ffffff;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+        .card-body {
+            background-color: #2a2a2a;
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+
+        .btn-custom {
+            background-color: #444;
+            color: #fff;
+            border-radius: 20px;
+        }
+        .btn-custom:hover {
+            background-color: #666;
+        }
+
+        .form-control {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+        .form-control:focus {
+            background-color: #333;
+            color: #fff;
+            border-color: #777;
+        }
+        .form-select {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+        .form-select:focus {
+            background-color: #333;
+            color: #fff;
+            border-color: #777;
+        }
+
+        .hero {
+            background: url('https://images.pexels.com/photos/60668/gun-schießen-pistol-micro-uzi-60668.jpeg') no-repeat center center;
+            background-size: cover;
+            height: 300px;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        .hero-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 0;
+        }
+        .hero-text {
+            position: absolute;
+            color: #fff;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 2rem;
+        }
+        @media (max-width: 767px) {
+            .hero {
+                height: 200px;
+            }
+            .hero-text {
+                font-size: 1rem;
+            }
+        }
+
+        .alert {
+            color: #000;
+        }
+        .alert-primary {
+            background-color: #90caf9;
+            border: none;
+        }
+        .alert-danger {
+            background-color: #ef9a9a;
+            border: none;
+        }
+
+        body.laser-mode {
+            background:#2e3d35;
+            color: #d8f3e3;
+        }
+
+        body.laser-mode nav {
+            background-color: #1b3a2a;
+        }
+
+        body.laser-mode nav a.navbar-brand,
+        body.laser-mode nav a.nav-link {
+            color: #a8ffd6 !important;
+        }
+
+        body.laser-mode .nav-link.active {
+            color: #66ffb3 !important;
+            font-weight: bold;
+        }
+
+        body.laser-mode .card {
+            background-color: #24332c;
+            color: #e5fff3;
+        }
+
+        body.laser-mode .card-header {
+            background-color: #1d2b24;
+        }
+
+        body.laser-mode .card-body {
+            background-color: #2e4038;
+        }
+
+        body.laser-mode .btn-custom {
+            background-color: #185c3a;
+            color: #cffff0;
+        }
+        body.laser-mode .btn-custom:hover {
+            background-color: #1f7a50;
+        }
+
+        /* primary Buttons (z.B. Laser-Tab) in grün */
+        body.laser-mode .btn-primary {
+            background-color: #1e6f4a;
+            border-color: #2da36a;
+            color: #ffffff;
+        }
+        body.laser-mode .btn-primary:hover {
+            background-color: #2da36a;
+            border-color: #2da36a;
+        }
+
+        body.laser-mode .form-control,
+        body.laser-mode .form-select {
+            background-color: #22352c;
+            color: #d9fff1;
+            border: 1px solid #3e5c4e;
+        }
+
+        body.laser-mode .form-control:focus,
+        body.laser-mode .form-select:focus {
+            border-color: #61c48c;
+        }
+
+        body.laser-mode .alert-primary {
+            background-color: #245c44;
+            color: #dfffe9;
+        }
+    </style>
+</head>
+<body class="{% if request.blueprint == 'bp_laser' %}laser-mode{% endif %}">
+    {% set laser_mode = (request.blueprint == 'bp_laser') %}
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('bp_main.index') }}">Range Log</a>
+            <button
+                class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation"
+            >
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item me-3">
+                        <div class="btn-group" role="group">
+                            <a
+                                href="{{ url_for('bp_main.index') }}"
+                                class="btn btn-sm {{ 'btn-primary' if not laser_mode else 'btn-secondary' }}"
+                            >
+                                Live
+                            </a>
+                            <a
+                                href="{{ url_for('bp_laser.index') }}"
+                                class="btn btn-sm {{ 'btn-primary' if laser_mode else 'btn-secondary' }}"
+                            >
+                                Laser
+                            </a>
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            class="nav-link {% if (not laser_mode and request.path == url_for('bp_main.range_visits')) or (laser_mode and request.path == url_for('bp_laser.range_visits')) %}active{% endif %}"
+                            href="{{ url_for('bp_laser.range_visits') if laser_mode else url_for('bp_main.range_visits') }}"
+                        >
+                            Range Visits
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            class="nav-link {% if (not laser_mode and request.path == url_for('bp_main.new_range_visit')) or (laser_mode and request.path == url_for('bp_laser.new_range_visit')) %}active{% endif %}"
+                            href="{{ url_for('bp_laser.new_range_visit') if laser_mode else url_for('bp_main.new_range_visit') }}"
+                        >
+                            New Range Visit
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            class="nav-link {% if (not laser_mode and request.path == url_for('bp_main.statistics')) or (laser_mode and request.path == url_for('bp_laser.statistics')) %}active{% endif %}"
+                            href="{{ url_for('bp_laser.statistics') if laser_mode else url_for('bp_main.statistics') }}"
+                        >
+                            Statistics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a
+                            class="nav-link {% if (not laser_mode and request.path == url_for('bp_main.settings')) or (laser_mode and request.path == url_for('bp_laser.settings')) %}active{% endif %}"
+                            href="{{ url_for('bp_laser.settings') if laser_mode else url_for('bp_main.settings') }}"
+                        >
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div
+                        class="alert alert-{{ category if category!='success' else 'primary' }} animate__animated animate__fadeIn"
+                        role="alert"
+                    >
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    ></script>
+</body>
+</html>

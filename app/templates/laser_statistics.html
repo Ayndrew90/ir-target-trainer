@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Laser Statistics</h2>
+
+<form method="POST" class="animate__animated animate__fadeInLeft mb-4">
+    <div class="row">
+        <div class="col-md-2 mb-3">
+            <label for="filter_user" class="form-label">Filter User</label>
+            <select class="form-select" name="filter_user" onchange="this.form.submit()">
+                <option value="all" {% if filter_user == "all" or not filter_user %}selected{% endif %}>
+                    All
+                </option>
+                {% for u in all_users %}
+                <option
+                    value="{{ u.id }}"
+                    {% if filter_user == u.id|string %}selected{% endif %}
+                >
+                    {{ u.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+            <label for="filter_gun" class="form-label">Filter Gun</label>
+            <select class="form-select" name="filter_gun" onchange="this.form.submit()">
+                <option value="all" {% if filter_gun == "all" or not filter_gun %}selected{% endif %}>
+                    All
+                </option>
+                {% for g in all_guns %}
+                <option
+                    value="{{ g.id }}"
+                    {% if filter_gun == g.id|string %}selected{% endif %}
+                >
+                    {{ g.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+            <label for="filter_target" class="form-label">Filter Target</label>
+            <select class="form-select" name="filter_target" onchange="this.form.submit()">
+                <option value="all" {% if filter_target == "all" or not filter_target %}selected{% endif %}>
+                    All
+                </option>
+                {% for t in all_targets %}
+                <option
+                    value="{{ t.id }}"
+                    {% if filter_target == t.id|string %}selected{% endif %}
+                >
+                    {{ t.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+            <label for="filter_distance" class="form-label">Filter Distance</label>
+            <select class="form-select" name="filter_distance" onchange="this.form.submit()">
+                <option value="all" {% if filter_distance == "all" or not filter_distance %}selected{% endif %}>
+                    All
+                </option>
+                <option value="10" {% if filter_distance == "10" %}selected{% endif %}>10m</option>
+                <option value="15" {% if filter_distance == "15" %}selected{% endif %}>15m</option>
+                <option value="20" {% if filter_distance == "20" %}selected{% endif %}>20m</option>
+                <option value="25" {% if filter_distance == "25" %}selected{% endif %}>25m</option>
+            </select>
+        </div>
+
+        <div class="col-md-2 mb-3">
+            <label for="filter_recents" class="form-label">Last X Visits</label>
+            <select class="form-select" name="filter_recents" onchange="this.form.submit()">
+                <option value="all" {% if filter_recents == "all" or not filter_recents %}selected{% endif %}>
+                    All
+                </option>
+                <option value="1" {% if filter_recents == "1" %}selected{% endif %}>Last Visit</option>
+                <option value="5" {% if filter_recents == "5" %}selected{% endif %}>Last 5 Visits</option>
+                <option value="10" {% if filter_recents == "10" %}selected{% endif %}>Last 10 Visits</option>
+            </select>
+        </div>
+    </div>
+</form>
+
+<div class="row animate__animated animate__fadeInUp">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">Average Score per Date (Laser)</div>
+            <div class="card-body">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">Average Score per Session (Laser)</div>
+            <div class="card-body">
+                <canvas id="visitChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12 animate__animated animate__fadeInUp">
+        <div class="card">
+            <div class="card-header">Shots Heatmap (Laser)</div>
+            <div class="card-body text-center">
+                <canvas id="heatmapCanvas" width="400" height="400" style="max-width: 90%; border:1px solid #666;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ctxScore = document.getElementById("scoreChart").getContext("2d");
+    const labelsScore = JSON.parse('{{ labels_avg_score|tojson|safe }}');
+    const dataScore = JSON.parse('{{ data_avg_score|tojson|safe }}');
+    new Chart(ctxScore, {
+        type: 'line',
+        data: {
+            labels: labelsScore,
+            datasets: [{
+                label: 'Average Score',
+                data: dataScore
+            }]
+        }
+    });
+
+    const ctxVisit = document.getElementById("visitChart").getContext("2d");
+    const labelsVisit = JSON.parse('{{ labels_visit_chart|tojson|safe }}');
+    const dataVisit = JSON.parse('{{ data_visit_chart|tojson|safe }}');
+    new Chart(ctxVisit, {
+        type: 'bar',
+        data: {
+            labels: labelsVisit,
+            datasets: [{
+                label: 'Average Score per Session',
+                data: dataVisit
+            }]
+        }
+    });
+
+    const heatmapCanvas = document.getElementById("heatmapCanvas");
+    const heatmapCtx = heatmapCanvas.getContext("2d");
+    const width = heatmapCanvas.width;
+    const height = heatmapCanvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    const shotsForHeatmap = JSON.parse('{{ shots_for_heatmap|tojson|safe }}');
+
+    function makeGaussianKernelValue(dist, radius=40) {
+        if (dist > radius) return 0;
+        const sigma = radius / 3;
+        return Math.exp(-(dist*dist)/(2*sigma*sigma));
+    }
+
+    let accum = new Float32Array(width * height);
+    let radius = 40;
+
+    shotsForHeatmap.forEach(shot => {
+        let minX = Math.max(0, Math.floor(shot.x - radius));
+        let maxX = Math.min(width - 1, Math.floor(shot.x + radius));
+        let minY = Math.max(0, Math.floor(shot.y - radius));
+        let maxY = Math.min(height - 1, Math.floor(shot.y + radius));
+        for (let py = minY; py <= maxY; py++) {
+            for (let px = minX; px <= maxX; px++) {
+                let dx = px - shot.x;
+                let dy = py - shot.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let val = makeGaussianKernelValue(dist, radius);
+                accum[py*width + px] += val;
+            }
+        }
+    });
+
+    let maxVal = 0;
+    for (let i=0; i<accum.length; i++){
+        if (accum[i] > maxVal) maxVal = accum[i];
+    }
+    if (maxVal === 0) maxVal = 1;
+
+    let imageData = heatmapCtx.createImageData(width, height);
+    let d = imageData.data;
+    for (let i=0; i<accum.length; i++){
+        let norm = accum[i] / maxVal;
+        let color = colorMap(norm);
+        let idx = i*4;
+        d[idx+0] = color.r;
+        d[idx+1] = color.g;
+        d[idx+2] = color.b;
+        d[idx+3] = 255;
+    }
+    heatmapCtx.putImageData(imageData, 0, 0);
+
+    drawCircleEdgesAndCrosshair();
+
+    function drawCircleEdgesAndCrosshair() {
+        const ringRadii = [40, 70, 100, 130, 160];
+        heatmapCtx.save();
+        heatmapCtx.strokeStyle = '#fff';
+        heatmapCtx.lineWidth = 1.5;
+
+        ringRadii.forEach(r => {
+            heatmapCtx.beginPath();
+            heatmapCtx.arc(centerX, centerY, r, 0, 2*Math.PI);
+            heatmapCtx.stroke();
+        });
+
+        heatmapCtx.beginPath();
+        heatmapCtx.moveTo(centerX, 0);
+        heatmapCtx.lineTo(centerX, height);
+        heatmapCtx.moveTo(0, centerY);
+        heatmapCtx.lineTo(width, centerY);
+        heatmapCtx.stroke();
+
+        heatmapCtx.restore();
+    }
+
+    function colorMap(t){
+        if(t<0) t=0;
+        if(t>1) t=1;
+        if(t < 0.25) {
+            let alpha = t / 0.25;
+            return lerpColor(0,0,255,  0,255,255, alpha);
+        } else if(t < 0.5) {
+            let alpha = (t-0.25)/0.25;
+            return lerpColor(0,255,255,  0,255,0, alpha);
+        } else if(t < 0.75) {
+            let alpha = (t-0.5)/0.25;
+            return lerpColor(0,255,0,  255,255,0, alpha);
+        } else {
+            let alpha = (t-0.75)/0.25;
+            return lerpColor(255,255,0,  255,0,0, alpha);
+        }
+    }
+
+    function lerpColor(r1,g1,b1, r2,g2,b2, alpha){
+        let r = Math.round(r1 + (r2 - r1)*alpha);
+        let g = Math.round(g1 + (g2 - g1)*alpha);
+        let b = Math.round(b1 + (b2 - b1)*alpha);
+        return {r, g, b};
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Laser Settings</h2>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInLeft">
+            <div class="card-header">
+                <h5 class="mb-0">New Laser User</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="form_type" value="user"/>
+                    <div class="mb-3">
+                        <label for="user_name" class="form-label">User Name</label>
+                        <input type="text" class="form-control" name="user_name" required />
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInUp">
+            <div class="card-header">
+                <h5 class="mb-0">New Laser Gun</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="form_type" value="gun"/>
+                    <div class="mb-3">
+                        <label for="gun_name" class="form-label">Gun Name</label>
+                        <input type="text" class="form-control" name="gun_name" required />
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInRight">
+            <div class="card-header">
+                <h5 class="mb-0">New Laser Target</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="form_type" value="target"/>
+                    <div class="mb-3">
+                        <label for="target_name" class="form-label">Target Name</label>
+                        <input type="text" class="form-control" name="target_name" required />
+                    </div>
+                    <button type="submit" class="btn btn-custom">
+                        Save
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInLeft">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Laser Users</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for u in all_users %}
+                    <p>{{ u.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__fadeInUp">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Laser Guns</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for g in all_guns %}
+                    <p>{{ g.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card animate__animated animate__FadeInRight">
+            <div class="card-header">
+                <h5 class="mb-0">Existing Laser Targets</h5>
+            </div>
+            <div class="card-body" style="max-height: 200px; overflow-y: auto;">
+                {% for t in all_targets %}
+                    <p>{{ t.name }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

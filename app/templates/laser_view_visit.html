@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block content %}
+{% if not session %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Laser Session not found</h2>
+{% else %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Laser Session #{{ session.id }}</h2>
+
+<div class="card animate__animated animate__fadeInLeft">
+    <div class="card-header">
+        <strong>Date:</strong> {{ session.date }}
+    </div>
+    <div class="card-body">
+        <p>
+            <strong>Gun ID:</strong> {{ session.gun_id }}<br/>
+            <strong>Shots / Round:</strong> {{ session.shots_per_round }}
+        </p>
+    </div>
+</div>
+
+<h4 class="mt-4">Rounds:</h4>
+{% for r in rounds %}
+<div class="card mb-3 animate__animated animate__fadeInUp">
+    <div class="card-body">
+        <p>
+            <strong>Round #{{ loop.index }}</strong><br/>
+            <strong>User:</strong> {{ get_user_name(r.user_id) }}<br/>
+            <strong>Target:</strong> {{ get_target_name(r.target_type_id) }}<br/>
+            <strong>Distance:</strong> {{ r.distance }}m<br/>
+            <strong>Score / Shot:</strong> {{ "%.1f"|format(r.score) }}<br/>
+            <strong>Total Shots (session setting):</strong> {{ r.total_shots }}
+        </p>
+
+        <div class="row">
+            <div class="col-md-6 text-center mb-3">
+                {% if r.photo %}
+                <div>
+                    <a
+                        href="{{ url_for('static', filename='uploads/' ~ r.photo) }}"
+                        target="_blank"
+                    >
+                        <img
+                            src="{{ url_for('static', filename='uploads/' ~ r.photo) }}"
+                            alt="Laser target"
+                            style="max-width: 100%; border:1px solid #555;"
+                        />
+                    </a>
+                </div>
+                {% else %}
+                <em>No snapshot available.</em>
+                {% endif %}
+            </div>
+            <div class="col-md-6 text-center mb-3">
+                <canvas
+                    class="laser-target-canvas"
+                    width="400"
+                    height="400"
+                    data-hits='{{ r.hits|tojson|safe }}'
+                    style="border:1px solid #666; max-width: 100%;"
+                ></canvas>
+                <div class="mt-1">Virtual Target</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<script>
+    const streamWidth = {{ stream_width }};
+    const streamHeight = {{ stream_height }};
+
+    const DESIGN_RADIUS_10 = 161;
+    const DESIGN_RADIUS_9  = 280;
+    const DESIGN_RADIUS_8  = 401;
+    const DESIGN_RADIUS_7  = 520;
+    const DESIGN_RADIUS_6  = 642;
+    const DESIGN_TARGET_SIZE = 1600;
+
+    const canvases = document.querySelectorAll('.laser-target-canvas');
+
+    canvases.forEach(canvas => {
+        const ctx = canvas.getContext('2d');
+        const hits = JSON.parse(canvas.dataset.hits || '[]');
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const maxR = Math.min(w, h) / 2 - 10;
+
+        const scaleR = maxR / DESIGN_RADIUS_6;
+        const ringRadii = [
+            DESIGN_RADIUS_6 * scaleR,
+            DESIGN_RADIUS_7 * scaleR,
+            DESIGN_RADIUS_8 * scaleR,
+            DESIGN_RADIUS_9 * scaleR,
+            DESIGN_RADIUS_10 * scaleR
+        ];
+
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, 0, w, h);
+
+        let colorFlag = false;
+        for (let i = ringRadii.length - 1; i >= 0; i--) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, ringRadii[i], 0, 2 * Math.PI);
+            ctx.fillStyle = colorFlag ? '#000000' : '#666666';
+            ctx.fill();
+            colorFlag = !colorFlag;
+        }
+
+        ctx.strokeStyle = '#aaaaaa';
+        ctx.lineWidth = 1;
+        ringRadii.forEach(r => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+            ctx.stroke();
+        });
+
+        ctx.beginPath();
+        ctx.moveTo(cx, 0);
+        ctx.lineTo(cx, h);
+        ctx.moveTo(0, cy);
+        ctx.lineTo(w, cy);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ff0000';
+        hits.forEach(hit => {
+            let px, py;
+
+            if (hit.roi && hit.roi.w && hit.roi.h) {
+                const roi = hit.roi;
+                const roiCx = roi.x + roi.w / 2.0;
+                const roiCy = roi.y + roi.h / 2.0;
+
+                const scaleX = roi.w / DESIGN_TARGET_SIZE;
+                const scaleY = roi.h / DESIGN_TARGET_SIZE;
+
+                const dx_design = (hit.x - roiCx) / scaleX;
+                const dy_design = (hit.y - roiCy) / scaleY;
+
+                px = cx + dx_design * scaleR;
+                py = cy + dy_design * scaleR;
+            } else {
+                const normX = hit.x / streamWidth;
+                const normY = hit.y / streamHeight;
+                px = normX * w;
+                py = normY * h;
+            }
+
+            ctx.beginPath();
+            ctx.arc(px, py, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    });
+</script>
+{% endblock %}

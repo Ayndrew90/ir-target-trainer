@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">New Laser Training Session</h2>
+
+<form method="POST" id="laserForm">
+    <input type="hidden" name="rounds_json" id="rounds_json"/>
+
+    <div class="card mb-3 animate__animated animate__fadeInLeft">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="shots_per_round">Shots per Round</label>
+                    <input
+                        type="number"
+                        class="form-control"
+                        id="shots_per_round"
+                        name="shots_per_round"
+                        value="25"
+                        min="1"
+                        required
+                    />
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="gun_id">Gun</label>
+                    <select class="form-select" id="gun_id" name="gun_id" required>
+                        <option value="" disabled selected>Select gun</option>
+                        {% for g in all_guns %}
+                        <option value="{{ g.id }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3 d-flex align-items-end">
+                    <div>
+                        <strong>Date:</strong> {{ today }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3 animate__animated animate__fadeInUp">
+        <div class="card-header">
+            Current Round Setup
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="round_user_id">User</label>
+                    <select class="form-select" id="round_user_id">
+                        <option value="" disabled selected>Select user</option>
+                        {% for u in all_users %}
+                        <option value="{{ u.id }}">{{ u.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="round_target_id">Target</label>
+                    <select class="form-select" id="round_target_id">
+                        <option value="" disabled selected>Select target</option>
+                        {% for t in all_targets %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="round_distance">Distance</label>
+                    <select class="form-select" id="round_distance">
+                        <option value="10">10m</option>
+                        <option value="15">15m</option>
+                        <option value="20">20m</option>
+                        <option value="25">25m</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3 d-flex flex-column justify-content-end">
+                    <div>Current Score: <span id="current-score">0</span></div>
+                    <div>Average (hits only): <span id="current-average">0,0</span></div>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-round">
+                    Reset Hits
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm ms-2" id="btn-reset-roi">
+                    Reset ROI
+                </button>
+            </div>
+
+            <div id="video-wrapper"
+                 data-base-width="640"
+                 data-base-height="360"
+                 style="max-width: 640px; margin: 0 auto; position: relative;">
+                <img id="video-stream"
+                     src="{{ url_for('bp_laser.video_feed') }}"
+                     alt="laser stream"
+                     style="width: 100%; height: auto; display: block; border:1px solid #555;">
+                <canvas id="roi-canvas"
+                        style="position:absolute; left:0; top:0; width:100%; height:100%;"></canvas>
+            </div>
+
+            <div class="mt-2 text-center">
+                <button type="button" class="btn btn-custom" id="btn-add-round">
+                    Add Round from Camera
+                </button>
+            </div>
+            <div class="mt-2 text-center">
+                <span id="roi-status">ROI: not set</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3 animate__animated animate__fadeInRight">
+        <div class="card-header">
+            Rounds in this Session
+        </div>
+        <div class="card-body">
+            <table class="table table-dark table-striped w-100">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User</th>
+                        <th>Target</th>
+                        <th>Distance</th>
+                        <th>Score / Shot</th>
+                    </tr>
+                </thead>
+                <tbody id="rounds-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-custom mt-3">Save Session</button>
+</form>
+
+<script>
+    const img = document.getElementById('video-stream');
+    const canvas = document.getElementById('roi-canvas');
+    const ctx = canvas.getContext('2d');
+    const roiStatus = document.getElementById('roi-status');
+    const currentScoreSpan = document.getElementById('current-score');
+    const currentAverageSpan = document.getElementById('current-average');
+    const btnResetRound = document.getElementById('btn-reset-round');
+    const btnResetRoi = document.getElementById('btn-reset-roi');
+    const btnAddRound = document.getElementById('btn-add-round');
+    const roundsTableBody = document.getElementById('rounds-table-body');
+    const roundsJsonField = document.getElementById('rounds_json');
+    const shotsPerRoundInput = document.getElementById('shots_per_round');
+
+    const videoWrapper = document.getElementById('video-wrapper');
+    const BASE_WIDTH = parseInt(videoWrapper.dataset.baseWidth, 10);
+    const BASE_HEIGHT = parseInt(videoWrapper.dataset.baseHeight, 10);
+
+    let firstCorner = null;
+    let currentRoiDisplay = null;
+    let roiLocked = false;
+    let rounds = [];
+
+    function syncCanvasSize() {
+        const rect = img.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        drawOverlay();
+    }
+
+    function clearOverlay() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawOverlay() {
+        clearOverlay();
+        if (roiLocked) {
+            return;
+        }
+        if (currentRoiDisplay) {
+            const { x, y, w, h } = currentRoiDisplay;
+            ctx.strokeStyle = 'lime';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, w, h);
+        }
+        if (firstCorner) {
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.arc(firstCorner.x, firstCorner.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    canvas.addEventListener('click', (e) => {
+        if (roiLocked) {
+            return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const xDisplay = e.clientX - rect.left;
+        const yDisplay = e.clientY - rect.top;
+
+        if (!firstCorner) {
+            firstCorner = { x: xDisplay, y: yDisplay };
+            roiStatus.textContent = "First corner set. Tap second corner.";
+            drawOverlay();
+        } else {
+            const second = { x: xDisplay, y: yDisplay };
+
+            let x1 = Math.min(firstCorner.x, second.x);
+            let y1 = Math.min(firstCorner.y, second.y);
+            let x2 = Math.max(firstCorner.x, second.x);
+            let y2 = Math.max(firstCorner.y, second.y);
+
+            let wDisplay = x2 - x1;
+            let hDisplay = y2 - y1;
+
+            if (wDisplay < 5 || hDisplay < 5) {
+                roiStatus.textContent = "ROI too small, not set.";
+                firstCorner = null;
+                currentRoiDisplay = null;
+                drawOverlay();
+                return;
+            }
+
+            currentRoiDisplay = { x: x1, y: y1, w: wDisplay, h: hDisplay };
+            drawOverlay();
+
+            const scaleX = BASE_WIDTH / canvas.clientWidth;
+            const scaleY = BASE_HEIGHT / canvas.clientHeight;
+
+            const xBase = Math.round(x1 * scaleX);
+            const yBase = Math.round(y1 * scaleY);
+            const wBase = Math.round(wDisplay * scaleX);
+            const hBase = Math.round(hDisplay * scaleY);
+
+            fetch("{{ url_for('bp_laser.set_roi') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ x: xBase, y: yBase, w: wBase, h: hBase })
+            })
+            .then(r => r.json())
+            .then(data => {
+                roiStatus.textContent = "ROI set.";
+                roiLocked = true;
+                firstCorner = null;
+                drawOverlay();
+            })
+            .catch(err => {
+                console.error(err);
+                roiStatus.textContent = "Error setting ROI.";
+                firstCorner = null;
+                currentRoiDisplay = null;
+                drawOverlay();
+            });
+        }
+    });
+
+    btnResetRound.addEventListener('click', () => {
+        fetch("{{ url_for('bp_laser.clear_hits') }}", { method: "POST" })
+            .then(r => r.json())
+            .then(() => {
+                currentScoreSpan.textContent = "0";
+                currentAverageSpan.textContent = "0,0";
+            })
+            .catch(console.error);
+    });
+
+    btnResetRoi.addEventListener('click', () => {
+        fetch("{{ url_for('bp_laser.clear_roi') }}", { method: "POST" })
+            .then(r => r.json())
+            .then(() => {
+                roiLocked = false;
+                firstCorner = null;
+                currentRoiDisplay = null;
+                roiStatus.textContent = "ROI: not set";
+                drawOverlay();
+            })
+            .catch(console.error);
+    });
+
+    function updateStats() {
+        fetch("{{ url_for('bp_laser.stats') }}")
+            .then(r => r.json())
+            .then(data => {
+                currentScoreSpan.textContent = data.score.toString();
+                const avgStr = (data.average || 0).toFixed(1).replace('.', ',');
+                currentAverageSpan.textContent = avgStr;
+            })
+            .catch(() => {});
+    }
+
+    btnAddRound.addEventListener('click', async () => {
+        const userSel = document.getElementById('round_user_id');
+        const targetSel = document.getElementById('round_target_id');
+        const distSel = document.getElementById('round_distance');
+
+        const user_id = userSel.value;
+        const target_id = targetSel.value;
+        const distance = distSel.value;
+
+        if (!user_id || !target_id) {
+            alert("Select user and target first.");
+            return;
+        }
+
+        const statsResp = await fetch("{{ url_for('bp_laser.stats') }}");
+        const stats = await statsResp.json();
+
+        const snapResp = await fetch("{{ url_for('bp_laser.save_snapshot') }}", { method: "POST" });
+        const snap = await snapResp.json();
+        if (snap.status !== "ok") {
+            alert("Could not save snapshot.");
+            return;
+        }
+
+        const shotsPerRound = parseInt(shotsPerRoundInput.value || "0", 10);
+        const raw_score = stats.score || 0;
+        const score_per_shot = shotsPerRound > 0 ? raw_score / shotsPerRound : 0;
+
+        rounds.push({
+            user_id: parseInt(user_id, 10),
+            user_name: userSel.options[userSel.selectedIndex].text,
+            target_id: parseInt(target_id, 10),
+            target_name: targetSel.options[targetSel.selectedIndex].text,
+            distance: distance,
+            raw_score: raw_score,
+            score_per_shot: score_per_shot,
+            hits: stats.hits_list || [],
+            photo: snap.filename
+        });
+
+        renderRoundsTable();
+
+        fetch("{{ url_for('bp_laser.clear_hits') }}", { method: "POST" })
+            .then(() => {
+                currentScoreSpan.textContent = "0";
+                currentAverageSpan.textContent = "0,0";
+            })
+            .catch(console.error);
+    });
+
+    function renderRoundsTable() {
+        roundsTableBody.innerHTML = "";
+        rounds.forEach((r, idx) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${idx + 1}</td>
+                <td>${r.user_name}</td>
+                <td>${r.target_name}</td>
+                <td>${r.distance}m</td>
+                <td>${r.score_per_shot.toFixed(1)}</td>
+            `;
+            roundsTableBody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('laserForm').addEventListener('submit', () => {
+        const payload = rounds.map(r => ({
+            user_id: r.user_id,
+            target_id: r.target_id,
+            distance: r.distance,
+            raw_score: r.raw_score,
+            hits: r.hits,
+            photo: r.photo
+        }));
+        roundsJsonField.value = JSON.stringify(payload);
+    });
+
+    img.addEventListener('load', () => {
+        syncCanvasSize();
+    });
+    window.addEventListener('resize', syncCanvasSize);
+
+    setInterval(updateStats, 1000);
+</script>
+{% endblock %}

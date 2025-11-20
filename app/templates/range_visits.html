@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-4 animate__animated animate__fadeIn">Range Visits</h2>
+
+<div class="row animate__animated animate__fadeInLeft">
+    {% for v in visits %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <strong>Date:</strong> {{ v.date }}
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>Range:</strong> {{ get_range_name(v.range_id) }}<br/>
+                    <strong>Ammo Used:</strong> {{ v.ammo_used }}
+                </p>
+                <div class="d-flex justify-content-between">
+                    <a 
+                        href="{{ url_for('bp_main.view_visit', visit_id=v.id) }}" 
+                        class="btn btn-custom"
+                    >
+                        Details
+                    </a>
+                    <form 
+                        method="POST" 
+                        action="{{ url_for('bp_main.delete_visit', visit_id=v.id) }}"
+                        onsubmit="return confirm('Really delete this visit?')"
+                    >
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

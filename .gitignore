@@ -1,1 +1,4 @@
 .env
+app/__pycache__
+app/data/*
+app/static/uploads/*
