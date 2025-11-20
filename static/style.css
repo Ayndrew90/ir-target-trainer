@@ -79,3 +79,7 @@ button:active {
 #roi-display {
     white-space: nowrap;
 }
+
+#score-display {
+    white-space: nowrap;
+}

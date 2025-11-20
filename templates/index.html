@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>IR Target Trainer</title>
+    <title>IR Target Stream</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>IR Target Trainer</h1>
+        <h1>IR Target Stream</h1>
         <p>
             Tap/click once for the <strong>top-left</strong> corner of the target area,<br>
             then tap/click again for the <strong>bottom-right</strong> corner.<br>
@@ -28,6 +28,7 @@
             <button id="clear-roi">Clear ROI</button>
             <button id="clear-hits">Clear Hits</button>
             <span id="roi-display">ROI: (not set)</span>
+            <span id="score-display">Score: 0 (Ø 0,0)</span>
             <div class="status" id="status-message"></div>
         </div>
     </div>

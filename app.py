@@ -4,6 +4,7 @@ import time
 from dotenv import load_dotenv
 import os
 from flask import Flask, Response, request, jsonify, render_template
+import math
 
 load_dotenv()
 
@@ -20,12 +21,20 @@ MIN_CONTOUR_AREA = 15
 MIN_TIME_BETWEEN_HITS = 0.2
 HIT_MARKER_RADIUS = 8
 
+TARGET_DESIGN_SIZE = 1600.0
+RADIUS_10 = 161.0
+RADIUS_9 = 280.0
+RADIUS_8 = 401.0
+RADIUS_7 = 520.0
+RADIUS_6 = 642.0
+
 app = Flask(__name__)
 
 roi = None
 hits = []
 last_detection_time = 0.0
 prev_frame = None
+total_score = 0
 
 
 class Camera:
@@ -73,8 +82,39 @@ camera = Camera(RTSP_URL)
 camera.start()
 
 
+def compute_score(hit_x, hit_y, roi_box):
+    if roi_box is None:
+        return 0
+
+    x, y, w, h = roi_box
+    if w <= 0 or h <= 0:
+        return 0
+
+    cx = x + w / 2.0
+    cy = y + h / 2.0
+
+    scale_x = w / TARGET_DESIGN_SIZE
+    scale_y = h / TARGET_DESIGN_SIZE
+
+    dx_design = (hit_x - cx) / scale_x
+    dy_design = (hit_y - cy) / scale_y
+    r = math.hypot(dx_design, dy_design)
+
+    if r <= RADIUS_10:
+        return 10
+    if r <= RADIUS_9:
+        return 9
+    if r <= RADIUS_8:
+        return 8
+    if r <= RADIUS_7:
+        return 7
+    if r <= RADIUS_6:
+        return 6
+    return 0
+
+
 def detect_hit_and_draw(frame):
-    global roi, hits, last_detection_time, prev_frame
+    global roi, hits, last_detection_time, prev_frame, total_score
 
     if frame is None:
         return frame
@@ -122,10 +162,15 @@ def detect_hit_and_draw(frame):
                 cy = int(M["m01"] / M["m00"])
                 cx += offset_x
                 cy += offset_y
-                hits.append((cx, cy))
+
+                score = compute_score(cx, cy, roi)
+                hits.append({"x": cx, "y": cy, "score": score})
+                total_score += score
                 last_detection_time = now
 
-    for (hx, hy) in hits:
+    for hit in hits:
+        hx = hit["x"]
+        hy = hit["y"]
         cv2.circle(frame, (hx, hy), HIT_MARKER_RADIUS, (0, 0, 255), 2)
         cv2.circle(frame, (hx, hy), 3, (0, 0, 255), -1)
 
@@ -181,7 +226,7 @@ def video_feed():
                         pad_left,
                         pad_right,
                         borderType=cv2.BORDER_CONSTANT,
-                        value=[0, 0, 0]
+                        value=[0, 0, 0],
                     )
             else:
                 display_frame = cv2.resize(frame, (STREAM_WIDTH, STREAM_HEIGHT))
@@ -226,9 +271,17 @@ def clear_roi():
 
 @app.route("/clear_hits", methods=["POST"])
 def clear_hits():
-    global hits
+    global hits, total_score
     hits = []
+    total_score = 0
     return jsonify({"status": "ok"})
+
+
+@app.route("/stats")
+def stats():
+    hits_count = len(hits)
+    average = float(total_score) / hits_count if hits_count > 0 else 0.0
+    return jsonify({"hits": hits_count, "score": total_score, "average": average})
 
 
 if __name__ == "__main__":

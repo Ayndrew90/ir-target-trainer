@@ -2,6 +2,7 @@ const img = document.getElementById('video-stream');
 const canvas = document.getElementById('roi-canvas');
 const ctx = canvas.getContext('2d');
 const roiDisplay = document.getElementById('roi-display');
+const scoreDisplay = document.getElementById('score-display');
 const statusMessage = document.getElementById('status-message');
 const clearRoiButton = document.getElementById('clear-roi');
 const clearHitsButton = document.getElementById('clear-hits');
@@ -133,6 +134,7 @@ clearHitsButton.addEventListener('click', () => {
         .then(response => response.json())
         .then(data => {
             statusMessage.textContent = "All hits cleared.";
+            updateStats();
         })
         .catch(err => {
             console.error(err);
@@ -140,5 +142,24 @@ clearHitsButton.addEventListener('click', () => {
         });
 });
 
-img.addEventListener('load', syncCanvasSize);
+function updateStats() {
+    fetch('/stats')
+        .then(response => response.json())
+        .then(data => {
+            const score = data.score || 0;
+            const avg = data.average || 0;
+            const avgStr = avg.toFixed(1).replace('.', ',');
+            scoreDisplay.textContent = "Score: " + score + " (Ø " + avgStr + ")";
+        })
+        .catch(err => {
+            console.error(err);
+        });
+}
+
+img.addEventListener('load', () => {
+    syncCanvasSize();
+    updateStats();
+});
+
 window.addEventListener('resize', syncCanvasSize);
+setInterval(updateStats, 1000);
