@@ -5,6 +5,8 @@
 <form method="POST" id="laserForm">
     <input type="hidden" name="rounds_json" id="rounds_json"/>
 
+    <audio id="hit-sound" src="{{ url_for('static', filename='beep.mp3') }}"></audio>
+
     <div class="card mb-3 animate__animated animate__fadeInLeft">
         <div class="card-body">
             <div class="row">
@@ -150,10 +152,14 @@
     const BASE_WIDTH = parseInt(videoWrapper.dataset.baseWidth, 10);
     const BASE_HEIGHT = parseInt(videoWrapper.dataset.baseHeight, 10);
 
+    const hitSound = document.getElementById('hit-sound');
+
     let firstCorner = null;
     let currentRoiDisplay = null;
     let roiLocked = false;
     let rounds = [];
+
+    let lastHitsCount = 0;
 
     function syncCanvasSize() {
         const rect = img.getBoundingClientRect();
@@ -256,6 +262,7 @@
             .then(() => {
                 currentScoreSpan.textContent = "0";
                 currentAverageSpan.textContent = "0,0";
+                lastHitsCount = 0;
             })
             .catch(console.error);
     });
@@ -280,6 +287,17 @@
                 currentScoreSpan.textContent = data.score.toString();
                 const avgStr = (data.average || 0).toFixed(1).replace('.', ',');
                 currentAverageSpan.textContent = avgStr;
+                const hitsNow = data.hits || 0;
+                const diff = hitsNow - lastHitsCount;
+                if (diff > 0) {
+                    for (let i = 0; i < diff; i++) {
+                        if (hitSound) {
+                            hitSound.currentTime = 0;
+                            hitSound.play().catch(() => {});
+                        }
+                    }
+                }
+                lastHitsCount = hitsNow;
             })
             .catch(() => {});
     }
@@ -330,6 +348,7 @@
             .then(() => {
                 currentScoreSpan.textContent = "0";
                 currentAverageSpan.textContent = "0,0";
+                lastHitsCount = 0;
             })
             .catch(console.error);
     });
