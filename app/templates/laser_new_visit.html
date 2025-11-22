@@ -144,6 +144,7 @@
     const roiStatus = document.getElementById('roi-status');
     const currentScoreSpan = document.getElementById('current-score');
     const currentAverageSpan = document.getElementById('current-average');
+    const currentHitsSpan = document.getElementById('current-hits');
     const btnResetRound = document.getElementById('btn-reset-round');
     const btnResetRoi = document.getElementById('btn-reset-roi');
     const btnAddRound = document.getElementById('btn-add-round');
@@ -265,6 +266,7 @@
             .then(() => {
                 currentScoreSpan.textContent = "0";
                 currentAverageSpan.textContent = "0,0";
+                currentHitsSpan.textContent = "0";
                 lastHitsCount = 0;
             })
             .catch(console.error);
@@ -291,6 +293,7 @@
                 const avgStr = (data.average || 0).toFixed(1).replace('.', ',');
                 currentAverageSpan.textContent = avgStr;
                 const hitsNow = data.hits || 0;
+                currentHitsSpan.textContent = hitsNow.toString();
                 const diff = hitsNow - lastHitsCount;
                 if (diff > 0) {
                     for (let i = 0; i < diff; i++) {
@@ -351,6 +354,7 @@
             .then(() => {
                 currentScoreSpan.textContent = "0";
                 currentAverageSpan.textContent = "0,0";
+                currentHitsSpan.textContent = "0";
                 lastHitsCount = 0;
             })
             .catch(console.error);
