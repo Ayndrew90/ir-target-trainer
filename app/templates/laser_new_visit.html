@@ -158,6 +158,25 @@
 
     const hitSound = document.getElementById('hit-sound');
 
+    function playBeep() {
+        if (!hitSound) return;
+        hitSound.currentTime = 0;
+        hitSound.play().catch(() => {});
+    }
+
+    function playTripleBeep() {
+        if (!hitSound) return;
+        let count = 0;
+        const interval = setInterval(() => {
+            hitSound.currentTime = 0;
+            hitSound.play().catch(() => {});
+            count++;
+            if (count >= 3) {
+                clearInterval(interval);
+            }
+        }, 120);
+    }
+
     let firstCorner = null;
     let currentRoiDisplay = null;
     let roiLocked = false;
@@ -292,17 +311,31 @@
                 currentScoreSpan.textContent = data.score.toString();
                 const avgStr = (data.average || 0).toFixed(1).replace('.', ',');
                 currentAverageSpan.textContent = avgStr;
+
                 const hitsNow = data.hits || 0;
-                currentHitsSpan.textContent = hitsNow.toString();
                 const diff = hitsNow - lastHitsCount;
+
+                const shotsTarget = parseInt(shotsPerRoundInput.value || "0", 10) || 0;
+
+                const reachedNow =
+                    shotsTarget > 0 &&
+                    lastHitsCount < shotsTarget &&
+                    hitsNow >= shotsTarget;
+
                 if (diff > 0) {
-                    for (let i = 0; i < diff; i++) {
-                        if (hitSound) {
-                            hitSound.currentTime = 0;
-                            hitSound.play().catch(() => {});
+                    if (reachedNow) {
+                        const normalHits = Math.max(0, diff - 1);
+                        for (let i = 0; i < normalHits; i++) {
+                            playBeep();
+                        }
+                        playTripleBeep();
+                    } else {
+                        for (let i = 0; i < diff; i++) {
+                            playBeep();
                         }
                     }
                 }
+
                 lastHitsCount = hitsNow;
             })
             .catch(() => {});
