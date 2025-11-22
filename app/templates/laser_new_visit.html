@@ -313,6 +313,9 @@
                 currentAverageSpan.textContent = avgStr;
 
                 const hitsNow = data.hits || 0;
+
+                currentHitsSpan.textContent = hitsNow.toString();
+
                 const diff = hitsNow - lastHitsCount;
 
                 const shotsTarget = parseInt(shotsPerRoundInput.value || "0", 10) || 0;
