@@ -162,6 +162,7 @@
 
     const hitSound = document.getElementById('hit-sound');
     const resetCameraUrl = "{{ url_for('bp_laser.reset_camera') }}";
+    const setHitsLimitUrl = "{{ url_for('bp_laser.set_hits_limit') }}";
 
     function playBeep() {
         if (!hitSound) return;
@@ -188,6 +189,21 @@
     let rounds = [];
 
     let lastHitsCount = 0;
+
+    syncHitsLimit();
+
+    shotsPerRoundInput.addEventListener('change', syncHitsLimit);
+    shotsPerRoundInput.addEventListener('blur', syncHitsLimit);
+
+    function syncHitsLimit() {
+        const limit = parseInt(shotsPerRoundInput.value || "0", 10) || 0;
+
+        fetch(setHitsLimitUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ limit }),
+        }).catch(() => {});
+    }
 
     async function resetCamera() {
         btnResetCamera.disabled = true;

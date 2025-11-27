@@ -51,6 +51,8 @@ last_detection_time = 0.0
 prev_frame = None
 total_score = 0
 last_display_frame = None
+max_hits_allowed = 0
+detection_paused = False
 lock_state = threading.Lock()
 
 
@@ -156,7 +158,7 @@ def compute_score(hit_x, hit_y, roi_box):
 
 
 def detect_hit_and_draw(frame):
-    global roi, hits, last_detection_time, prev_frame, total_score, last_display_frame
+    global roi, hits, last_detection_time, prev_frame, total_score, last_display_frame, detection_paused
 
     if frame is None:
         return frame
@@ -186,6 +188,21 @@ def detect_hit_and_draw(frame):
         offset_x, offset_y = 0, 0
 
     contours, _ = cv2.findContours(roi_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    with lock_state:
+        paused_due_to_limit = detection_paused or (
+            max_hits_allowed > 0 and len(hits) >= max_hits_allowed
+        )
+
+    if paused_due_to_limit:
+        with lock_state:
+            for hval in hits:
+                hx = hval["x"]
+                hy = hval["y"]
+                cv2.circle(frame, (hx, hy), HIT_MARKER_RADIUS, (0, 0, 255), 2)
+                cv2.circle(frame, (hx, hy), 3, (0, 0, 255), -1)
+            last_display_frame = frame.copy()
+        return frame
 
     max_c = None
     max_area = 0
@@ -219,6 +236,8 @@ def detect_hit_and_draw(frame):
                     for hval in hits:
                         total += hval["score"]
                     globals()["total_score"] = total
+                    if max_hits_allowed > 0 and len(hits) >= max_hits_allowed:
+                        globals()["detection_paused"] = True
                 last_detection_time = now
 
     with lock_state:
@@ -722,11 +741,48 @@ def reset_camera():
 
 @bp_laser.route("/clear_hits", methods=["POST"])
 def clear_hits():
-    global hits, total_score
+    global hits, total_score, detection_paused
     with lock_state:
         hits = []
         total_score = 0
+        detection_paused = False
     return jsonify({"status": "ok"})
+
+
+@bp_laser.route("/set_hits_limit", methods=["POST"])
+def set_hits_limit():
+    global max_hits_allowed, detection_paused
+    data = request.get_json(force=True) or {}
+
+    try:
+        limit = int(data.get("limit", 0))
+    except (TypeError, ValueError):
+        limit = 0
+
+    limit = max(0, limit)
+
+    with lock_state:
+        max_hits_allowed = limit
+
+        current_hits = len(hits)
+
+        if detection_paused and current_hits > 0:
+            pass
+        elif max_hits_allowed == 0:
+            detection_paused = False
+        elif current_hits >= max_hits_allowed:
+            detection_paused = True
+        else:
+            detection_paused = False
+
+    return jsonify(
+        {
+            "status": "ok",
+            "limit": max_hits_allowed,
+            "hits": current_hits,
+            "paused": detection_paused,
+        }
+    )
 
 
 @bp_laser.route("/stats")
