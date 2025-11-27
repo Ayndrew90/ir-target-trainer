@@ -59,6 +59,7 @@ class Camera:
         self.rtsp_url = rtsp_url
         self.capture = cv2.VideoCapture(self.rtsp_url)
         self.lock = threading.Lock()
+        self.capture_lock = threading.Lock()
         self.frame = None
         self.running = True
 
@@ -71,13 +72,20 @@ class Camera:
 
     def update(self):
         while self.running:
-            if self.capture.isOpened():
-                ret, frame = self.capture.read()
-                if not ret:
-                    time.sleep(0.05)
-                    continue
+            with self.capture_lock:
+                capture = self.capture
+                opened = capture is not None and capture.isOpened()
+                if opened:
+                    ret, frame = capture.read()
+                else:
+                    ret = False
+                    frame = None
+
+            if opened and ret:
                 with self.lock:
                     self.frame = frame
+            elif opened and not ret:
+                time.sleep(0.05)
             else:
                 time.sleep(0.5)
 
@@ -89,10 +97,27 @@ class Camera:
 
     def stop(self):
         self.running = False
-        try:
-            self.capture.release()
-        except Exception:
-            pass
+        with self.capture_lock:
+            try:
+                self.capture.release()
+            except Exception:
+                pass
+
+    def reset(self):
+        with self.capture_lock:
+            try:
+                if self.capture is not None:
+                    self.capture.release()
+            except Exception:
+                pass
+
+            self.capture = cv2.VideoCapture(self.rtsp_url)
+
+        with self.lock:
+            self.frame = None
+
+        if not self.capture.isOpened():
+            print("Warning: could not reopen RTSP stream for laser mode.")
 
 
 camera = Camera(RTSP_URL)
@@ -680,6 +705,18 @@ def set_roi():
 def clear_roi():
     global roi
     roi = None
+    return jsonify({"status": "ok"})
+
+
+@bp_laser.route("/reset_camera", methods=["POST"])
+def reset_camera():
+    global prev_frame, last_display_frame
+
+    camera.reset()
+    with lock_state:
+        prev_frame = None
+        last_display_frame = None
+
     return jsonify({"status": "ok"})
 
 
