@@ -89,6 +89,9 @@
                 <button type="button" class="btn btn-secondary btn-sm ms-2" id="btn-reset-roi">
                     Reset ROI
                 </button>
+                <button type="button" class="btn btn-warning btn-sm ms-2" id="btn-reset-camera">
+                    Reset Camera
+                </button>
             </div>
 
             <div id="video-wrapper"
@@ -147,6 +150,7 @@
     const currentHitsSpan = document.getElementById('current-hits');
     const btnResetRound = document.getElementById('btn-reset-round');
     const btnResetRoi = document.getElementById('btn-reset-roi');
+    const btnResetCamera = document.getElementById('btn-reset-camera');
     const btnAddRound = document.getElementById('btn-add-round');
     const roundsTableBody = document.getElementById('rounds-table-body');
     const roundsJsonField = document.getElementById('rounds_json');
@@ -157,6 +161,7 @@
     const BASE_HEIGHT = parseInt(videoWrapper.dataset.baseHeight, 10);
 
     const hitSound = document.getElementById('hit-sound');
+    const resetCameraUrl = "{{ url_for('bp_laser.reset_camera') }}";
 
     function playBeep() {
         if (!hitSound) return;
@@ -183,6 +188,24 @@
     let rounds = [];
 
     let lastHitsCount = 0;
+
+    async function resetCamera() {
+        btnResetCamera.disabled = true;
+        const originalText = btnResetCamera.textContent;
+        btnResetCamera.textContent = 'Resetting...';
+        try {
+            const response = await fetch(resetCameraUrl, {method: 'POST'});
+            if (!response.ok) {
+                throw new Error('Failed to reset camera');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Could not reset camera. Please try again.');
+        } finally {
+            btnResetCamera.disabled = false;
+            btnResetCamera.textContent = originalText;
+        }
+    }
 
     function syncCanvasSize() {
         const rect = img.getBoundingClientRect();
@@ -303,6 +326,8 @@
             })
             .catch(console.error);
     });
+
+    btnResetCamera.addEventListener('click', resetCamera);
 
     function updateStats() {
         fetch("{{ url_for('bp_laser.stats') }}")
