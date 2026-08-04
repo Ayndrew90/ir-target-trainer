@@ -71,6 +71,11 @@ The settings pages allow ranges, firearms, target types and laser users to be ma
 - Local JSON storage
 - RTSP video streaming
 
+## Tested Hardware
+
+- LaserAmmo DryFire MAG with IR Laser
+- Tapo C125 Webcam (at least 50 fps necessary for quicker shooting)
+
 ## Requirements
 
 - Python 3.10 or newer
